@@ -8,10 +8,12 @@ library(xlsx)
 library(stringi)
 
 # Define UI for data upload app ----
-ui <- fluidPage(theme = shinytheme("simplex"),
+ui <- fluidPage(
+  
+  # theme = shinytheme("simplex"),
   
   # App title ----
-  titlePanel("Update - Ipeadata Macro (v0.0.1)"),
+  titlePanel("Atualizacao - Ipeadata Macroeconomico (v0.0.1)"),
   
   # Sidebar layout with input and output definitions ----
   sidebarLayout(
@@ -20,29 +22,41 @@ ui <- fluidPage(theme = shinytheme("simplex"),
     sidebarPanel(
       
       # Input: Select a file ----
-      fileInput("file1", "Choose .xls file to upload",
+      fileInput(inputId = "file1", 
+                label = "Escolha o arquivo .xls para upload",
                 multiple = FALSE,
                 accept = c("text/xls",
                            "text/comma-separated-values,text/plain",
-                           ".xls")),
+                           ".xls"),
+                buttonLabel = "Arquivo...", 
+                placeholder = "Nenhum arquivo selecionado"),
       
       # Horizontal line ----
       tags$hr(),
       
       # Texto sobre o botao
-      tags$h5("Check values"),
+      tags$h5("Checar valores"),
       
       # Botao de acao
-      actionButton("chec", "Check"),
+      actionButton("chec", "Checar", icon = icon("search")),
       
       # Horizontal line ----
       tags$hr(),
       
       # Texto sobre o botao
-      tags$h5("Update database"),
+      tags$h5("Atualizar banco de dados"),
       
       # Botao de acao
-      actionButton("gener", "Update", class = "btn-primary")
+      actionButton("gener", "Atualizar", class = "btn-primary", icon = icon("arrow-circle-up")),
+      
+      # Horizontal line ----
+      tags$hr(),
+      
+      # Texto sobre o botao
+      tags$h5("Limpar cache"),
+      
+      # Botao de acao
+      actionButton("limp", "Limpar", icon = icon("eraser"))
 
     ),
     
@@ -52,7 +66,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
       # Output: Data file ----
       # tableOutput("contents")
       DT::dataTableOutput("contents"),
-      h4("Warnings"),
+      h4("Avisos"),
       verbatimTextOutput("txtout")
     )
     
@@ -73,23 +87,19 @@ server <- function(input, output) {
 
     tryCatch(
       {
-        # df <- read.csv(input$file1$datapath,
-        #                header = input$header,
-        #                sep = input$sep,
-        #                quote = input$quote)
-        
+
         # ----- Lendo xls
         df <- data.frame(read_excel(input$file1$datapath))
-        
-        
-        # df <- data.frame(read_excel("C:/Users/b207056565/Desktop/TERC_generica.xls"))
         names(df)[1] <- "VALDATA"
         names(df)[- 1] <- toupper(names(df)[- 1])
+        
+        # ----- Configurando as colunas para numerico
         nvar <- ncol(df)
         df[, 1] <- as.character(as.Date(df[, 1], origin = "1900-01-01"))
         for (i in 2:nvar) {
           df[, i] <- as.numeric(df[, i])
         }
+        
         df2 <- df
         for (i in 2:nvar) {
           df[, i] <- round(as.numeric(df[, i]), 2)
@@ -98,20 +108,20 @@ server <- function(input, output) {
         
         inFile <- input$file1
         file_name <- stringi::stri_extract_first(str = inFile$name, regex = ".*(?=\\.)")
-        
-        # file_name <- iconv(file_name, to="ASCII//TRANSLIT")
-        
         file_name <- gsub(" ", "_", file_name)
         
+        # ----- Ao clicar no botao 'Atualizar'
         if (input$gener == 1) {
           
-          write.xlsx(df2,
-                     file.path("", "", "Srjn3", 
-                               "Area_Corporativa", "Projeto_IPEADATA",
-                               "ETL", "Generica", paste0(file_name, ".xls")),
-                     sheetName = "Generica", row.names = FALSE, showNA = FALSE)
-          
+          # ----- Generica no diretorio
+          # write.xlsx(df2,
+          #            file.path("", "", "Srjn3", 
+          #                      "Area_Corporativa", "Projeto_IPEADATA",
+          #                      "ETL", "Generica", paste0(file_name, ".xls")),
+          #            sheetName = "Generica", row.names = FALSE, showNA = FALSE)
+        
         }
+        
       },
       error = function(e) {
         # return a safeError if a parsing error occurs
@@ -121,53 +131,56 @@ server <- function(input, output) {
     
     return(df)
     
-  }, options = list(searching = FALSE))
+  }, caption = '',
+  options = list(
+    searching = FALSE,
+    language = list(
+    info = 'Mostrando de _START_ até _END_ de _TOTAL_ registros',
+    search = 'Pesquisar:',
+    emptyTable = 'No data available in table',
+    infoEmpty = "Mostrando 0 até 0 de 0 registros",
+    infoFiltered = "(Filtrados de _MAX_ registros)",
+    infoPostFix = "",
+    thousands = ".",
+    lengthMenu = "_MENU_ resultados por página",
+    loadingRecords = "Carregando...",
+    processing = "Processando...",
+    zeroRecords = "Nenhum registro encontrado",
+    paginate = list(previous = 'Anterior', `next` = 'Próximo', 
+                    first = "Primeiro", last = "Último"),
+    aria = list(sortAscending = ': Ordenar colunas de forma ascendente',
+                sortDescending = ": Ordenar colunas de forma descendente")
+    
+    ),
+    pageLength = 5
+  ))
   
   # Texto informativo dinamico conforme avanco do processo
   output$txtout <- renderText({
     
-    texto <- ifelse(is.null(input$file1), 
-                    "----- No file selected.",
-                    "----- Uploaded successfully.")
-    
-    texto <- ifelse(input$chec == 1 & !is.null(input$file1), 
-                    paste0(texto, "\n----- Checking values."), 
-                    texto)
-    
     inFile <- input$file1
     file_name <- stringi::stri_extract_first(str = inFile$name, regex = ".*(?=\\.)")
-
-    # file_name <- iconv(file_name, to="ASCII//TRANSLIT")
-
     file_name <- gsub(" ", "_", file_name)
+    
+    if (is.null(input$file1)) {
+      texto <- "----- Nenhum arquivo selecionado."
+    }
+    
+    if (!is.null(input$file1) & (input$chec == input$gener) & (input$gener == input$limp)) {
+      # texto <- paste0("----- ", file_name, ".xls carregado com sucesso.")
+      texto <- NULL
+    }
 
-    # if (input$gener == 1) {
-    # 
-    #   write.xlsx(output$contents,
-    #              file.path("", "", "Srjn3",
-    #                        "Area_Corporativa", "Projeto_IPEADATA",
-    #                        "ETL", "Generica", paste0(file_name, ".xls")),
-    #              sheetName = "Generica", row.names = FALSE, showNA = FALSE)
-    # 
-    # }
+    if (!is.null(input$file1) & (input$chec > input$gener) & (input$gener == input$limp)) {
+      texto <-  paste0("----- Checando valores de ", file_name, ".xls.")
+    }
     
-    texto <- ifelse(input$gener == 1 & !is.null(input$file1), 
-                    paste0(texto, "\n----- ", file_name, ".xls sent to Projeto_IPEADATA/ETL/Generica."), 
-                    texto)
-    
+    if (!is.null(input$file1) & (input$chec == input$gener) & (input$gener > input$limp)) {
+      texto <- paste0("----- ", file_name, ".xls enviado para a pasta ETL/Generica.")
+    }
+      
     return(texto)
   })
-  
-  # Obtendo o nome do arquivo carregado
-  # file_name <- reactive({
-  #   inFile <- input$file1
-  #   
-  #   if (is.null(inFile)) {
-  #     return(NULL)
-  #   }
-  #     
-  #   return (stringi::stri_extract_first(str = inFile$name, regex = ".*(?=\\.)"))
-  # })
   
 }
 
