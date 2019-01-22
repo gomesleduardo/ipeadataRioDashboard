@@ -1,5 +1,14 @@
 ## app.R ##
 library(shinydashboard)
+library(shiny)
+library(readxl)
+library(magrittr)
+library(shinythemes)
+library(rJava)
+library(xlsxjars)
+library(xlsx)
+library(stringi)
+
 
 ui <- dashboardPage(
   dashboardHeader(title = "Basic dashboard"),
